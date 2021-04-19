@@ -24,6 +24,7 @@ namespace ProAgil.Webapi
             services.AddDbContext<DataContext>(x=> x.UseSqlite(Configuration.GetConnectionString("DefaultConnection")));
 
             services.AddControllers();
+            services.AddCors();
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "ProAgil.Webapi", Version = "v1" });
@@ -42,6 +43,8 @@ namespace ProAgil.Webapi
 
             //app.UseHttpsRedirection();
 
+            app.UseCors(x=>x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            app.UseStaticFiles();
             app.UseRouting();
 
             app.UseAuthorization();
