@@ -1,6 +1,12 @@
-import { FormsModule } from '@angular/forms';
+import { Evento } from './../_models/Evento';
+import { EventoService } from './../_services/evento.service';
 import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { defineLocale } from 'ngx-bootstrap/chronos';
+import { ptBrLocale } from 'ngx-bootstrap/locale';
+import { BsLocaleService } from 'ngx-bootstrap/datepicker';
+
+defineLocale('pt-br', ptBrLocale)
 
 @Component({
   selector: 'app-eventos',
@@ -10,45 +16,128 @@ import { HttpClient } from '@angular/common/http';
 export class EventosComponent implements OnInit {
 
   _filtroLista: string;
-  eventosFiltrados: any = [];
-  eventos: any = [];
+  eventosFiltrados: Evento[] = [];
+  evento: Evento;
+  eventos: Evento[] = [];
   imagemAltura: number = 50;
   imagemMargem: number = 2;
   mostrarImagem: Boolean = false;
+  registerForm: FormGroup;
+  modoSalvar = 'post';
+  bodyDeletarEvento = '';
 
-  constructor(private http: HttpClient) { }
+  constructor(private eventoService: EventoService,
+    private fb: FormBuilder,
+    private localeService: BsLocaleService) {
+    this.localeService.use('pt-br');
+  }
+
+  alternarImagem() {
+    this.mostrarImagem = !this.mostrarImagem;
+  }
+
+  confirmeDelete(template: any) {
+    this.eventoService.deleteEvento(+this.evento.id).subscribe(
+      () => {
+        template.hide();
+        this.getEventos();
+      }, error => {
+        console.log(error);
+      }
+    );
+  }
+
+  editarEvento(evento: Evento, template: any) {
+    this.modoSalvar = 'put';
+    this.openModal(template);
+    this.evento = evento;
+    this.registerForm.patchValue(evento);
+  }
+
+  excluirEvento(evento: Evento, template: any) {
+    this.openModal(template);
+    this.evento = evento;
+    this.bodyDeletarEvento = `Tem certeza que deseja excluir o Evento: ${evento.tema}, Código: ${evento.tema}`;
+  }
 
   get filtroLista(): string {
     return this._filtroLista;
   }
 
-  set filtroLista(value: string){
+  set filtroLista(value: string) {
     this._filtroLista = value;
-    this.eventosFiltrados = this.filtroLista ? this.filtrarEventos(this.filtroLista): this.eventos;
+    this.eventosFiltrados = this.filtroLista ? this.filtrarEventos(this.filtroLista) : this.eventos;
   }
 
-  filtrarEventos(filtrarPor: string) : any
-  {
+  filtrarEventos(filtrarPor: string): Evento[] {
     filtrarPor = filtrarPor.toLocaleLowerCase();
     return this.eventos.filter(evento => evento.tema.toLocaleLowerCase().indexOf(filtrarPor) !== -1);
   }
 
-  ngOnInit() {
-    this.getEventos();
-  }
-
-  alternarImagem(){
-    this.mostrarImagem = !this.mostrarImagem;
-  }
-
-  getEventos()
-  {
-    this.http.get('http://localhost:5000/Evento').subscribe(
-      response => {
-        this.eventos = response;
+  getEventos() {
+    this.eventoService.getAllEvento().subscribe(
+      (_eventos: Evento[]) => {
+        this.eventos = _eventos;
+        this.eventosFiltrados = _eventos;
       }, error => {
         console.log(error);
       }
     );
+  }
+
+  ngOnInit() {
+    this.validation();
+    this.getEventos();
+  }
+
+  novoEvento(template: any) {
+    this.modoSalvar = 'post';
+    this.openModal(template);
+  }
+
+  openModal(template: any) {
+    this.registerForm.reset();
+    template.show();
+  }
+
+  salvarAlteracao(template: any) {
+    if (this.registerForm.valid) {
+      if (this.modoSalvar == 'post') {
+        this.evento = Object.assign({}, this.registerForm.value);
+        this.eventoService.postEvento(this.evento).subscribe(
+          (novoEvento: Evento) => {
+            console.log(novoEvento);
+            template.hide();
+            this.getEventos();
+          }, error => {
+            console.log(error);
+          }
+        );
+      }
+      else {
+        this.evento = Object.assign({ id: this.evento.id }, this.registerForm.value);
+        this.eventoService.putEvento(this.evento).subscribe(
+          (novoEvento: Evento) => {
+            console.log(novoEvento);
+            template.hide();
+            this.getEventos();
+          }, error => {
+            console.log(error);
+          }
+        );
+      }
+    }
+  }
+
+  validation() {
+    this.registerForm = this.fb.group({
+      local: ['', Validators.required],
+      dataEvento: ['', Validators.required],
+      tema: ['', [Validators.required, Validators.minLength(4), Validators.maxLength(50)]],
+      qtdPessoas: ['', [Validators.required, Validators.max(120000)]],
+      imagemURL: ['', Validators.required],
+      telefone: ['', Validators.required],
+      email: ['', [Validators.required, Validators.email]]
+    });
   }
 }
