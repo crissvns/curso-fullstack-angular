@@ -5,6 +5,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { defineLocale } from 'ngx-bootstrap/chronos';
 import { ptBrLocale } from 'ngx-bootstrap/locale';
 import { BsLocaleService } from 'ngx-bootstrap/datepicker';
+import { ToastrService } from 'ngx-toastr';
 
 defineLocale('pt-br', ptBrLocale)
 
@@ -25,10 +26,12 @@ export class EventosComponent implements OnInit {
   registerForm: FormGroup;
   modoSalvar = 'post';
   bodyDeletarEvento = '';
+  file: File;
 
   constructor(private eventoService: EventoService,
     private fb: FormBuilder,
-    private localeService: BsLocaleService) {
+    private localeService: BsLocaleService,
+    private toastr: ToastrService) {
     this.localeService.use('pt-br');
   }
 
@@ -41,8 +44,9 @@ export class EventosComponent implements OnInit {
       () => {
         template.hide();
         this.getEventos();
+        this.toastr.success('Deletado com sucesso');
       }, error => {
-        console.log(error);
+        this.toastr.error(error);
       }
     );
   }
@@ -51,6 +55,7 @@ export class EventosComponent implements OnInit {
     this.modoSalvar = 'put';
     this.openModal(template);
     this.evento = evento;
+    this.evento.imagemURL = '';
     this.registerForm.patchValue(evento);
   }
 
@@ -80,7 +85,7 @@ export class EventosComponent implements OnInit {
         this.eventos = _eventos;
         this.eventosFiltrados = _eventos;
       }, error => {
-        console.log(error);
+        this.toastr.error(error);
       }
     );
   }
@@ -95,6 +100,15 @@ export class EventosComponent implements OnInit {
     this.openModal(template);
   }
 
+  onFileChange(event) {
+    const reader = new FileReader();
+
+    if (event.target.files && event.target.files.length) {
+      this.file = event.target.files;
+      console.log(this.file);
+    }
+  }
+
   openModal(template: any) {
     this.registerForm.reset();
     template.show();
@@ -104,25 +118,34 @@ export class EventosComponent implements OnInit {
     if (this.registerForm.valid) {
       if (this.modoSalvar == 'post') {
         this.evento = Object.assign({}, this.registerForm.value);
+        this.eventoService.postUpload(this.file).subscribe();
+        let nomeArquivo = this.evento.imagemURL.split('\\');
+        this.evento.imagemURL = nomeArquivo[nomeArquivo.length - 1];
+
         this.eventoService.postEvento(this.evento).subscribe(
           (novoEvento: Evento) => {
-            console.log(novoEvento);
             template.hide();
             this.getEventos();
+            this.toastr.success('Inserido com sucesso');
           }, error => {
-            console.log(error);
+            this.toastr.error(error);
           }
         );
       }
       else {
         this.evento = Object.assign({ id: this.evento.id }, this.registerForm.value);
+
+        this.eventoService.postUpload(this.file).subscribe();
+        let nomeArquivo = this.evento.imagemURL.split('\\');
+        this.evento.imagemURL = nomeArquivo[nomeArquivo.length - 1];
+
         this.eventoService.putEvento(this.evento).subscribe(
           (novoEvento: Evento) => {
-            console.log(novoEvento);
             template.hide();
             this.getEventos();
+            this.toastr.success('Editado com sucesso');
           }, error => {
-            console.log(error);
+            this.toastr.error(error);
           }
         );
       }

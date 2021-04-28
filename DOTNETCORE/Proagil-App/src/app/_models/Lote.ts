@@ -1,5 +1,3 @@
-import { Evento } from "./Evento";
-
 export interface Lote {
   id: Number;
   nome: string;
